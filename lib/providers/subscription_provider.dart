@@ -35,14 +35,17 @@ class SubscriptionProvider with ChangeNotifier {
   }
 
   Future<void> loadSubscriptions() async {
+    print('SubscriptionProvider: Loading subscriptions...');
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       _subscriptions = await ApiService.getSubscriptions();
+      print('SubscriptionProvider: Loaded ${_subscriptions.length} subscriptions');
       await _scheduleNotifications();
     } catch (e) {
+      print('SubscriptionProvider: Error loading subscriptions: $e');
       _error = e.toString();
     } finally {
       _isLoading = false;

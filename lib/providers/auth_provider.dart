@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
+import '../services/storage_service.dart';
 import '../services/api_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   bool _isAuthenticated = false;
   bool _isLoading = false;
   String? _currentUser;
@@ -15,7 +15,10 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
 
   AuthProvider() {
-    _checkAuthStatus();
+    print('AuthProvider: Constructor called');
+    _checkAuthStatus().catchError((error) {
+      print('AuthProvider: Error in constructor: $error');
+    });
   }
 
   Future<void> _checkAuthStatus() async {
@@ -23,19 +26,34 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final token = await _secureStorage.read(key: 'auth_token');
-      final user = await _secureStorage.read(key: 'current_user');
+      final token = await StorageService.read('auth_token');
+      final user = await StorageService.read('current_user');
+      
+      print('Auth: Checking auth status - Token: ${token != null ? "exists" : "null"}, User: $user');
       
       if (token != null && user != null) {
+        // Restore the auth token in ApiService
+        print('Auth: Restoring auth token in ApiService');
+        ApiService.setAuthToken(token);
         _isAuthenticated = true;
         _currentUser = user;
+        print('Auth: Authentication restored successfully');
+      } else {
+        _isAuthenticated = false;
+        _currentUser = null;
+        print('Auth: No stored credentials found');
+      }
+    } catch (e) {
+      print('Auth: Error checking auth status: $e');
+      // On web, storage errors might be common, so we'll be more lenient
+      if (kIsWeb) {
+        print('Auth: Web platform - continuing without stored credentials');
+        _isAuthenticated = false;
+        _currentUser = null;
       } else {
         _isAuthenticated = false;
         _currentUser = null;
       }
-    } catch (e) {
-      _isAuthenticated = false;
-      _currentUser = null;
     }
 
     _isLoading = false;
@@ -50,8 +68,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await ApiService.login(email, password);
       
-      await _secureStorage.write(key: 'auth_token', value: response['token']);
-      await _secureStorage.write(key: 'current_user', value: email);
+      await StorageService.write('auth_token', response['token']);
+      await StorageService.write('current_user', email);
       
       _isAuthenticated = true;
       _currentUser = email;
@@ -88,8 +106,8 @@ class AuthProvider extends ChangeNotifier {
 
       final response = await ApiService.register(email, password);
       
-      await _secureStorage.write(key: 'auth_token', value: response['token']);
-      await _secureStorage.write(key: 'current_user', value: email);
+      await StorageService.write('auth_token', response['token']);
+      await StorageService.write('current_user', email);
       
       _isAuthenticated = true;
       _currentUser = email;
@@ -109,8 +127,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _secureStorage.delete(key: 'auth_token');
-      await _secureStorage.delete(key: 'current_user');
+      await StorageService.delete('auth_token');
+      await StorageService.delete('current_user');
       ApiService.clearAuthToken();
       
       _isAuthenticated = false;
@@ -145,10 +163,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> verifySession() async {
     try {
-      final token = await _secureStorage.read(key: 'auth_token');
-      final user = await _secureStorage.read(key: 'current_user');
+      final token = await StorageService.read('auth_token');
+      final user = await StorageService.read('current_user');
+      
+      print('Auth: Verifying session - Token: ${token != null ? "exists" : "null"}, User: $user');
       
       if (token != null && user != null) {
+        // Restore the auth token in ApiService
+        print('Auth: Restoring auth token in ApiService during session verification');
         ApiService.setAuthToken(token);
         _isAuthenticated = true;
         _currentUser = user;
@@ -161,6 +183,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
+      print('Auth: Error verifying session: $e');
       _isAuthenticated = false;
       _currentUser = null;
       notifyListeners();
@@ -171,6 +194,11 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> refreshAuthState() async {
+    print('Auth: Refreshing auth state...');
+    await _checkAuthStatus();
   }
 
 

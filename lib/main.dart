@@ -7,8 +7,15 @@ import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/settings_screen.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    print('App: Initializing...');
+    runApp(const MyApp());
+  } catch (e) {
+    print('App: Error during initialization: $e');
+    rethrow;
+  }
 }
 
 class MyApp extends StatelessWidget {

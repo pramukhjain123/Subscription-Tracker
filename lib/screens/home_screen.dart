@@ -20,8 +20,36 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubscriptionProvider>().loadSubscriptions();
+      // Load subscriptions after the widget is built and auth state is determined
+      _loadSubscriptionsIfAuthenticated();
     });
+  }
+
+  void _loadSubscriptionsIfAuthenticated() {
+    final authProvider = context.read<AuthProvider>();
+    print('HomeScreen: Checking if should load subscriptions - Auth: ${authProvider.isAuthenticated}');
+    if (authProvider.isAuthenticated) {
+      print('HomeScreen: Loading subscriptions...');
+      context.read<SubscriptionProvider>().loadSubscriptions();
+    } else {
+      print('HomeScreen: Not authenticated, skipping subscription load');
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen to auth state changes and load subscriptions when authenticated
+    final authProvider = context.read<AuthProvider>();
+    print('HomeScreen: didChangeDependencies - Auth: ${authProvider.isAuthenticated}');
+    if (authProvider.isAuthenticated) {
+      final subscriptionProvider = context.read<SubscriptionProvider>();
+      print('HomeScreen: Auth confirmed, checking subscription state - Count: ${subscriptionProvider.subscriptions.length}, Loading: ${subscriptionProvider.isLoading}');
+      if (subscriptionProvider.subscriptions.isEmpty && !subscriptionProvider.isLoading) {
+        print('HomeScreen: Loading subscriptions from didChangeDependencies');
+        subscriptionProvider.loadSubscriptions();
+      }
+    }
   }
 
   @override
@@ -42,7 +70,11 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {
-              context.read<SubscriptionProvider>().loadSubscriptions();
+              print('HomeScreen: Manual refresh triggered');
+              // First refresh auth state, then load subscriptions
+              context.read<AuthProvider>().refreshAuthState().then((_) {
+                context.read<SubscriptionProvider>().loadSubscriptions();
+              });
             },
           ),
           IconButton(
@@ -56,15 +88,40 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Consumer<SubscriptionProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
+      body: Consumer2<AuthProvider, SubscriptionProvider>(
+        builder: (context, authProvider, subscriptionProvider, child) {
+          // Debug info
+          print('Auth state: ${authProvider.isAuthenticated}, User: ${authProvider.currentUser}');
+          print('Subscriptions count: ${subscriptionProvider.subscriptions.length}, Loading: ${subscriptionProvider.isLoading}, Error: ${subscriptionProvider.error}');
+          
+          // If not authenticated, show login prompt
+          if (!authProvider.isAuthenticated) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.lock_outline,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Please log in to view subscriptions',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+          
+          if (subscriptionProvider.isLoading) {
             return const Center(
               child: CircularProgressIndicator(),
             );
           }
 
-          if (provider.error != null) {
+          if (subscriptionProvider.error != null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -76,15 +133,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Error: ${provider.error}',
+                    'Error: ${subscriptionProvider.error}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      provider.clearError();
-                      provider.loadSubscriptions();
+                      subscriptionProvider.clearError();
+                      subscriptionProvider.loadSubscriptions();
                     },
                     child: const Text('Retry'),
                   ),
@@ -94,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           return RefreshIndicator(
-            onRefresh: provider.loadSubscriptions,
+            onRefresh: subscriptionProvider.loadSubscriptions,
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -109,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Expanded(
                               child: OverviewCard(
                                 title: 'Total Cost',
-                                value: '₹${provider.totalMonthlyCost.toStringAsFixed(2)}',
+                                value: '₹${subscriptionProvider.totalMonthlyCost.toStringAsFixed(2)}',
                                 icon: Icons.attach_money,
                                 color: Colors.green,
                               ),
@@ -118,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Expanded(
                               child: OverviewCard(
                                 title: 'Due Soon',
-                                value: provider.dueSoonSubscriptions.length.toString(),
+                                value: subscriptionProvider.dueSoonSubscriptions.length.toString(),
                                 icon: Icons.warning,
                                 color: Colors.orange,
                               ),
@@ -131,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Expanded(
                               child: OverviewCard(
                                 title: 'Overdue',
-                                value: provider.overdueSubscriptions.length.toString(),
+                                value: subscriptionProvider.overdueSubscriptions.length.toString(),
                                 icon: Icons.error,
                                 color: Colors.red,
                               ),
@@ -140,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Expanded(
                               child: OverviewCard(
                                 title: 'Total Subs',
-                                value: provider.subscriptions.length.toString(),
+                                value: subscriptionProvider.subscriptions.length.toString(),
                                 icon: Icons.list,
                                 color: Colors.blue,
                               ),
@@ -150,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 24),
                         
                         // Due Soon Section
-                        if (provider.dueSoonSubscriptions.isNotEmpty) ...[
+                        if (subscriptionProvider.dueSoonSubscriptions.isNotEmpty) ...[
                           const Text(
                             'Due Soon',
                             style: TextStyle(
@@ -163,13 +220,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 120,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
-                              itemCount: provider.dueSoonSubscriptions.length,
+                              itemCount: subscriptionProvider.dueSoonSubscriptions.length,
                               itemBuilder: (context, index) {
                                 return Container(
                                   width: 200,
                                   margin: const EdgeInsets.only(right: 12),
                                   child: SubscriptionCard(
-                                    subscription: provider.dueSoonSubscriptions[index],
+                                    subscription: subscriptionProvider.dueSoonSubscriptions[index],
                                     isCompact: true,
                                   ),
                                 );
@@ -200,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          final subscription = provider.sortedSubscriptions[index];
+                          final subscription = subscriptionProvider.sortedSubscriptions[index];
                           return AnimationConfiguration.staggeredList(
                             position: index,
                             duration: const Duration(milliseconds: 375),
@@ -209,21 +266,21 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: FadeInAnimation(
                                 child: SubscriptionCard(
                                   subscription: subscription,
-                                  onDelete: () => provider.deleteSubscription(subscription.id!),
-                                  onUpdateUsage: (hours) => provider.updateUsage(subscription.id!, hours),
+                                  onDelete: () => subscriptionProvider.deleteSubscription(subscription.id!),
+                                  onUpdateUsage: (hours) => subscriptionProvider.updateUsage(subscription.id!, hours),
                                 ),
                               ),
                             ),
                           );
                         },
-                        childCount: provider.sortedSubscriptions.length,
+                        childCount: subscriptionProvider.sortedSubscriptions.length,
                       ),
                     ),
                   ),
                 ),
                 
                 // Empty State
-                if (provider.subscriptions.isEmpty)
+                if (subscriptionProvider.subscriptions.isEmpty)
                   const SliverFillRemaining(
                     child: Center(
                       child: Column(

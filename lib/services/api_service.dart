@@ -18,6 +18,9 @@ class ApiService {
     final headers = {'Content-Type': 'application/json'};
     if (_authToken != null) {
       headers['Authorization'] = 'Bearer $_authToken';
+      print('API: Using auth token: ${_authToken!.substring(0, 10)}...');
+    } else {
+      print('API: No auth token available');
     }
     return headers;
   }
@@ -25,19 +28,31 @@ class ApiService {
   // Get all subscriptions
   static Future<List<Subscription>> getSubscriptions() async {
     try {
+      print('API: Getting subscriptions with headers: $_headers');
       final response = await http.get(
         Uri.parse('$baseUrl/subscriptions'),
         headers: _headers,
       );
       
+      print('API: Response status: ${response.statusCode}, body: ${response.body}');
+      
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => Subscription.fromJson(json)).toList();
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication failed. Please log in again.');
+      } else if (response.statusCode == 403) {
+        throw Exception('Access denied. Please check your permissions.');
       } else {
-        throw Exception('Failed to load subscriptions');
+        throw Exception('Failed to load subscriptions: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      throw Exception('Network error: $e');
+      print('API: Error getting subscriptions: $e');
+      if (e.toString().contains('Connection refused') || e.toString().contains('Failed host lookup')) {
+        throw Exception('Cannot connect to server. Please check if the backend is running.');
+      } else {
+        throw Exception('Network error: $e');
+      }
     }
   }
 
