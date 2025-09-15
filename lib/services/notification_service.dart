@@ -54,29 +54,47 @@ class NotificationService {
   }
 
   static Future<void> scheduleUsageNotification(Subscription subscription) async {
+    final double monthlyCost = subscription.price;
     if (subscription.lastUsed != null) {
-      final daysSinceLastUsed = DateTime.now().difference(subscription.lastUsed!).inDays;
-      
+      final int daysSinceLastUsed = DateTime.now().difference(subscription.lastUsed!).inDays;
       if (daysSinceLastUsed >= 7) {
         await _notifications.zonedSchedule(
-          (subscription.id.hashCode + 1000), // Different ID for usage notifications
-          'Unused Subscription Alert',
-          'You haven\'t used ${subscription.name} for $daysSinceLastUsed days. Consider if it\'s worth your money!',
+          (subscription.id.hashCode + 1000),
+          'Not using ${subscription.name}?',
+          'It costs you ₹${monthlyCost.toStringAsFixed(0)}/month. You can cancel to save it.',
           tz.TZDateTime.now(tz.local).add(const Duration(seconds: 5)),
           const NotificationDetails(
             android: AndroidNotificationDetails(
               'subscription_usage',
               'Subscription Usage',
               channelDescription: 'Notifications for unused subscriptions',
-              importance: Importance.defaultImportance,
-              priority: Priority.defaultPriority,
+              importance: Importance.high,
+              priority: Priority.high,
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
+          uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
+    } else {
+      // Never used: send a gentle reminder once after 10 days of tracking
+      await _notifications.zonedSchedule(
+        (subscription.id.hashCode + 1000),
+        'Haven\'t started ${subscription.name}?',
+        'It costs you ₹${monthlyCost.toStringAsFixed(0)}/month. Cancel anytime to save it.',
+        tz.TZDateTime.now(tz.local).add(const Duration(days: 10)),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'subscription_usage',
+            'Subscription Usage',
+            channelDescription: 'Notifications for unused subscriptions',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
     }
   }
 

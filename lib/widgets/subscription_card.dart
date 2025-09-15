@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import '../models/subscription.dart';
+import '../services/cancellation_service.dart';
+import '../screens/add_subscription_screen.dart';
 
 class SubscriptionCard extends StatelessWidget {
   final Subscription subscription;
@@ -59,15 +62,22 @@ class SubscriptionCard extends StatelessWidget {
         ],
       ),
       child: Card(
-        elevation: 2,
+        elevation: 1,
         margin: const EdgeInsets.only(bottom: 12),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: statusColor.withValues(alpha: 0.3),
+              color: statusColor.withValues(alpha: 0.2),
               width: 1,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -84,7 +94,7 @@ class SubscriptionCard extends StatelessWidget {
                             subscription.name,
                             style: const TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -93,7 +103,7 @@ class SubscriptionCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[600],
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -105,14 +115,14 @@ class SubscriptionCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         statusText,
                         style: TextStyle(
                           color: statusColor,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           fontSize: 12,
                         ),
                       ),
@@ -158,13 +168,15 @@ class SubscriptionCard extends StatelessWidget {
                   // Progress Bar
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      return LinearPercentIndicator(
-                        width: constraints.maxWidth,
-                        lineHeight: 6,
-                        percent: _calculateProgressPercent(),
-                        backgroundColor: Colors.grey[300],
-                        progressColor: statusColor,
-                        barRadius: const Radius.circular(3),
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearPercentIndicator(
+                          width: constraints.maxWidth,
+                          lineHeight: 8,
+                          percent: _calculateProgressPercent(),
+                          backgroundColor: Colors.grey[200],
+                          progressColor: statusColor,
+                        ),
                       );
                     },
                   ),
@@ -227,26 +239,36 @@ class SubscriptionCard extends StatelessWidget {
                   // Action Buttons
                   Row(
                     children: [
+                      IconButton(
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddSubscriptionScreen(initial: subscription),
+                            ),
+                          );
+                        },
+                        tooltip: 'Edit',
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () => _showUsageDialog(context),
-                          icon: const Icon(Icons.timer, size: 16),
+                          icon: const Icon(Icons.timer_outlined, size: 18),
                           label: const Text('Update Usage'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.blue,
-                            side: const BorderSide(color: Colors.blue),
+                            side: BorderSide(color: Theme.of(context).colorScheme.primary),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: () => _showCancelDialog(context),
-                          icon: const Icon(Icons.cancel, size: 16),
-                          label: const Text('Cancel Sub'),
+                          onPressed: _openCancellationPage,
+                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                          label: const Text('Cancel Online'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.red.shade600,
                           ),
                         ),
                       ),
@@ -315,67 +337,142 @@ class SubscriptionCard extends StatelessWidget {
   }
 
   void _showDeleteDialog(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Subscription'),
-        content: Text('Are you sure you want to delete ${subscription.name}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              onDelete?.call();
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_outline, color: Colors.red),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Delete ${subscription.name}?',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text('This action cannot be undone.', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        onDelete?.call();
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
+                      child: const Text('Delete'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   void _showCancelDialog(BuildContext context) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Subscription'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to cancel ${subscription.name}?'),
-            const SizedBox(height: 16),
-            const Text(
-              'This will remove the subscription from your tracking list.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Keep'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              onDelete?.call();
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Cancel Sub'),
-          ),
-        ],
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(Icons.open_in_new_rounded, color: Theme.of(context).colorScheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Cancel subscription online',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('We will open ${subscription.name}\'s cancellation page in a new tab.', style: const TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await _openCancellationPage();
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Open Page'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
+  }
+
+  Future<void> _openCancellationPage() async {
+    final Uri? url = CancellationService.getCancellationUrl(subscription.name);
+    if (url != null) {
+      final bool launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (launched) return;
+    }
+    final Uri search = Uri.parse('https://www.google.com/search?q=${Uri.encodeComponent('${subscription.name} cancel subscription')}');
+    await launchUrl(search, mode: LaunchMode.externalApplication);
   }
 } 

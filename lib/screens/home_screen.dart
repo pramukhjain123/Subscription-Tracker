@@ -174,10 +174,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: OverviewCard(
-                                title: 'Due Soon',
-                                value: subscriptionProvider.dueSoonSubscriptions.length.toString(),
-                                icon: Icons.warning,
-                                color: Colors.orange,
+                                title: 'Daily Cost',
+                                value: '₹${subscriptionProvider.totalDailyCost.toStringAsFixed(2)}',
+                                icon: Icons.calendar_today,
+                                color: Colors.purple,
                               ),
                             ),
                           ],
@@ -187,13 +187,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             Expanded(
                               child: OverviewCard(
+                                title: 'Due Soon',
+                                value: subscriptionProvider.dueSoonSubscriptions.length.toString(),
+                                icon: Icons.warning,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: OverviewCard(
                                 title: 'Overdue',
                                 value: subscriptionProvider.overdueSubscriptions.length.toString(),
                                 icon: Icons.error,
                                 color: Colors.red,
                               ),
                             ),
-                            const SizedBox(width: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
                             Expanded(
                               child: OverviewCard(
                                 title: 'Total Subs',
@@ -202,6 +215,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.blue,
                               ),
                             ),
+                            const SizedBox(width: 16),
+                            const Expanded(child: SizedBox.shrink()),
                           ],
                         ),
                         const SizedBox(height: 24),

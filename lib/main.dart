@@ -31,37 +31,52 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Subscription Tracker',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
-          primaryColor: const Color(0xFF2196F3),
-          scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF7C3AED),
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: const Color(0xFFF7F8FA),
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF2196F3),
-            foregroundColor: Colors.white,
             elevation: 0,
+            centerTitle: false,
           ),
           cardTheme: CardTheme(
-            elevation: 2,
+            elevation: 1,
+            surfaceTintColor: Colors.white,
+            margin: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2196F3),
-              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),
           inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF2196F3), width: 2),
-            ),
+          ),
+          textTheme: const TextTheme(
+            titleLarge: TextStyle(fontWeight: FontWeight.w700),
+            titleMedium: TextStyle(fontWeight: FontWeight.w600),
+            bodyMedium: TextStyle(height: 1.3),
           ),
         ),
         home: Consumer<AuthProvider>(

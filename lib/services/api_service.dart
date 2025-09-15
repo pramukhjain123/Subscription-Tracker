@@ -90,6 +90,24 @@ class ApiService {
       throw Exception('Network error: $e');
     }
   }
+
+  // Update subscription
+  static Future<Subscription> updateSubscription(String id, Subscription subscription) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/subscriptions/$id'),
+        headers: _headers,
+        body: json.encode(subscription.toJson()),
+      );
+      if (response.statusCode == 200) {
+        return Subscription.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to update subscription');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
   
   // Authentication methods
   static Future<Map<String, dynamic>> login(String email, String password) async {

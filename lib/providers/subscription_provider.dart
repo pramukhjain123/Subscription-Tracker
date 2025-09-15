@@ -34,6 +34,12 @@ class SubscriptionProvider with ChangeNotifier {
     return _subscriptions.fold(0.0, (sum, sub) => sum + sub.price);
   }
 
+  // Estimated daily total cost assuming a 30-day billing cycle per subscription
+  double get totalDailyCost {
+    if (_subscriptions.isEmpty) return 0.0;
+    return _subscriptions.fold(0.0, (sum, sub) => sum + (sub.price / 30.0));
+  }
+
   Future<void> loadSubscriptions() async {
     print('SubscriptionProvider: Loading subscriptions...');
     _isLoading = true;
@@ -73,6 +79,24 @@ class SubscriptionProvider with ChangeNotifier {
       await NotificationService.cancelNotification(id.hashCode);
       await NotificationService.cancelNotification(id.hashCode + 1000);
       notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateSubscription(String id, Subscription updated) async {
+    try {
+      // Optimistic update
+      final index = _subscriptions.indexWhere((s) => s.id == id);
+      if (index == -1) return;
+      final previous = _subscriptions[index];
+      _subscriptions[index] = updated;
+      notifyListeners();
+
+      await ApiService.updateSubscription(id, updated);
+      await _scheduleNotifications();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
