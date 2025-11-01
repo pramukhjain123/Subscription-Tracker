@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/subscription.dart';
 import '../providers/subscription_provider.dart';
+import '../services/usage_service.dart';
 
 class AddSubscriptionScreen extends StatefulWidget {
   const AddSubscriptionScreen({super.key, this.initial});
@@ -19,6 +20,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 30));
   bool _isAutoPay = false;
   bool _isLoading = false;
+  final _packageController = TextEditingController();
 
   // Category data
   static const List<String> _streamingAndEntertainment = [
@@ -179,10 +181,33 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     );
   }
 
+  Future<void> _openAppPicker() async {
+    final apps = await UsageService.listInstalledApps();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return _AppPickerSheet(
+          apps: apps,
+          onSelected: (pkg) {
+            _packageController.text = pkg;
+            Navigator.of(ctx).pop();
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _packageController.dispose();
     super.dispose();
   }
 
@@ -195,6 +220,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
       _priceController.text = s.price.toStringAsFixed(0);
       _selectedDate = s.dueDate;
       _isAutoPay = s.isAutoPay;
+      _packageController.text = s.packageName ?? '';
     }
   }
 
@@ -227,6 +253,7 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
         price: double.parse(_priceController.text),
         dueDate: _selectedDate,
         isAutoPay: _isAutoPay,
+        packageName: _packageController.text.trim().isEmpty ? null : _packageController.text.trim(),
       );
 
       if (widget.initial == null) {
@@ -267,8 +294,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Add Subscription'),
-        backgroundColor: const Color(0xFF2196F3),
-        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -294,6 +319,21 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // Android App Package (Optional)
+              TextFormField(
+                controller: _packageController,
+                readOnly: true,
+                onTap: _openAppPicker,
+                decoration: const InputDecoration(
+                  labelText: 'Android App Package (optional)',
+                  hintText: 'Tap to pick installed app',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.android),
+                  suffixIcon: Icon(Icons.arrow_drop_down_rounded),
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -363,8 +403,6 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _saveSubscription,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2196F3),
-                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -400,14 +438,14 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
                         children: [
                           Icon(
                             Icons.info_outline,
-                            color: Colors.blue[600],
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Usage Tracking',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue[600],
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ],
@@ -427,7 +465,93 @@ class _AddSubscriptionScreenState extends State<AddSubscriptionScreen> {
       ),
     );
   }
-} 
+}
+
+class _AppPickerSheet extends StatefulWidget {
+  final List<Map<String, String>> apps;
+  final ValueChanged<String> onSelected;
+
+  const _AppPickerSheet({required this.apps, required this.onSelected});
+
+  @override
+  State<_AppPickerSheet> createState() => _AppPickerSheetState();
+}
+
+class _AppPickerSheetState extends State<_AppPickerSheet> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(() {
+        _query = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = widget.apps.where((e) {
+      final name = (e['appName'] ?? '').toLowerCase();
+      final pkg = (e['packageName'] ?? '').toLowerCase();
+      if (_query.isEmpty) return true;
+      return name.contains(_query) || pkg.contains(_query);
+    }).toList(growable: false);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            const Text(
+              'Pick Installed App',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Search apps',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: ListView.separated(
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (ctx, idx) {
+                  final app = filtered[idx];
+                  final title = app['appName'] ?? app['packageName'] ?? '';
+                  final subtitle = app['packageName'] ?? '';
+                  return ListTile(
+                    leading: const Icon(Icons.apps),
+                    title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
+                    onTap: () => widget.onSelected(subtitle),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _CategoryTab extends StatefulWidget {
   final List<String> items;

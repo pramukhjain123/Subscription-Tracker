@@ -55,20 +55,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text(
           'Subscription Tracker',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFF2196F3),
-        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: const Icon(Icons.refresh),
             onPressed: () {
               print('HomeScreen: Manual refresh triggered');
               // First refresh auth state, then load subscriptions
@@ -78,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
+            icon: const Icon(Icons.settings),
             onPressed: () {
               Navigator.push(
                 context,
@@ -96,17 +92,17 @@ class _HomeScreenState extends State<HomeScreen> {
           
           // If not authenticated, show login prompt
           if (!authProvider.isAuthenticated) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lock_outline,
                     size: 64,
                     color: Colors.grey,
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
+                  SizedBox(height: 16),
+                  Text(
                     'Please log in to view subscriptions',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
@@ -333,4 +329,4 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: const AddSubscriptionButton(),
     );
   }
-} 
+}

@@ -7,6 +7,8 @@ class Subscription {
   final double usageHours;
   final bool isAutoPay;
   final DateTime? lastUsed;
+  final String? packageName;
+  final String? paymentUrl;
 
   Subscription({
     this.id,
@@ -17,6 +19,8 @@ class Subscription {
     this.usageHours = 0.0,
     this.isAutoPay = false,
     this.lastUsed,
+    this.packageName,
+    this.paymentUrl,
   });
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
@@ -36,6 +40,8 @@ class Subscription {
       usageHours: parseDouble(json['usageHours']),
       isAutoPay: json['isAutoPay'] ?? false,
       lastUsed: json['lastUsed'] != null ? DateTime.parse(json['lastUsed']) : null,
+      packageName: json['packageName'],
+      paymentUrl: json['paymentUrl'],
     );
   }
 
@@ -48,6 +54,8 @@ class Subscription {
       'usageHours': usageHours,
       'isAutoPay': isAutoPay,
       'lastUsed': lastUsed?.toIso8601String(),
+      'packageName': packageName,
+      'paymentUrl': paymentUrl,
     };
   }
 
@@ -60,6 +68,8 @@ class Subscription {
     double? usageHours,
     bool? isAutoPay,
     DateTime? lastUsed,
+    String? packageName,
+    String? paymentUrl,
   }) {
     return Subscription(
       id: id ?? this.id,
@@ -70,6 +80,8 @@ class Subscription {
       usageHours: usageHours ?? this.usageHours,
       isAutoPay: isAutoPay ?? this.isAutoPay,
       lastUsed: lastUsed ?? this.lastUsed,
+      packageName: packageName ?? this.packageName,
+      paymentUrl: paymentUrl ?? this.paymentUrl,
     );
   }
 
@@ -77,4 +89,5 @@ class Subscription {
   int get daysUntilDue => dueDate.difference(DateTime.now()).inDays;
   bool get isOverdue => dueDate.isBefore(DateTime.now());
   bool get isDueSoon => daysUntilDue <= 7 && daysUntilDue >= 0;
+  double get hourlyCost => usageHours > 0 ? price / usageHours : price; // fallback
 } 

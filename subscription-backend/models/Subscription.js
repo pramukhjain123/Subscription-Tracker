@@ -7,7 +7,8 @@ const SubscriptionSchema = new mongoose.Schema({
   dueDate: Date,
   isAutoPay: Boolean,
   usageHours: { type: Number, default: 0 },
-  lastUsed: { type: Date, default: null }
+  lastUsed: { type: Date, default: null },
+  packageName: { type: String, default: null }
 });
 
 module.exports = mongoose.model('Subscription', SubscriptionSchema);

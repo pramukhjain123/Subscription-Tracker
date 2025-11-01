@@ -28,11 +28,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text('Sign Up'),
-        backgroundColor: const Color(0xFF2196F3),
-        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: Consumer<AuthProvider>(
